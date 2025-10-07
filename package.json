@@ -1,0 +1,23 @@
+{
+  "name": "solana-ai-trading-agent",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Autonomous Solana trading agent with OpenAI-driven intelligence and risk-managed execution.",
+  "scripts": {
+    "typecheck": "tsc -b",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "clean": "npm run clean --workspaces"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

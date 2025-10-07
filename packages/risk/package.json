@@ -1,0 +1,17 @@
+{
+  "name": "@ai-agent/risk",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc -b",
+    "lint": "npm run typecheck",
+    "test": "echo \"(risk) no tests yet\""
+  },
+  "dependencies": {
+    "@ai-agent/infra": "0.0.1"
+  }
+}

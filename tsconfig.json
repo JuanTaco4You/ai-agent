@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/infra" },
+    { "path": "./packages/data" },
+    { "path": "./packages/execution" },
+    { "path": "./packages/risk" },
+    { "path": "./apps/agent" }
+  ]
+}

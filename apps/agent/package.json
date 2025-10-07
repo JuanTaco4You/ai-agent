@@ -1,0 +1,25 @@
+{
+  "name": "@ai-agent/app-agent",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc -b",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc -b",
+    "lint": "npm run typecheck",
+    "test": "echo \"(agent) no tests yet\""
+  },
+  "dependencies": {
+    "@ai-agent/data": "0.0.1",
+    "@ai-agent/execution": "0.0.1",
+    "@ai-agent/infra": "0.0.1",
+    "@solana/web3.js": "^1.92.3"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
+  }
+}

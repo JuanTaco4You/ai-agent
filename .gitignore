@@ -1,0 +1,19 @@
+# Node
+node_modules/
+dist/
+tmp/
+.turbo/
+
+# Env and secrets
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Editors
+.DS_Store
+.idea/
+.vscode/
+
