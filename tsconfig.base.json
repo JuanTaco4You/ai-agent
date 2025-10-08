@@ -3,6 +3,10 @@
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
+    "baseUrl": "./",
+    "paths": {
+      "@ai-agent/*": ["packages/*/src"]
+    },
     "lib": [
       "ES2022"
     ],
