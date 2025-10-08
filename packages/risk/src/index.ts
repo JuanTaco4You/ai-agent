@@ -21,6 +21,10 @@ export class RiskEngine {
     this.logger = logger;
   }
 
+  getCurrentExposureSol(): number {
+    return this.unrealizedExposureSol;
+  }
+
   canEnterPosition(solAmount: number): boolean {
     const nextExposure = this.unrealizedExposureSol + solAmount;
     if (nextExposure > this.limits.maxPositionSol) {
