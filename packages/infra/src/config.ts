@@ -17,6 +17,14 @@ export type AgentConfig = {
   webhook?: {
     url: string;
   };
+  openai?: {
+    apiKey: string;
+    decisionModel: string;
+    fastModel?: string;
+    baseUrl: string;
+    temperature: number;
+    maxTokens?: number;
+  };
 };
 
 const envSchema = z.object({
@@ -34,6 +42,13 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
   WEBHOOK_NOTIFY_URL: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL_DECISION: z.string().optional(),
+  OPENAI_MODEL_GUARD: z.string().optional(),
+  OPENAI_MODEL_FAST: z.string().optional(),
+  OPENAI_BASE_URL: z.string().optional(),
+  OPENAI_TEMPERATURE: z.string().optional(),
+  OPENAI_MAX_TOKENS: z.string().optional(),
 });
 
 function normalizeWalletSecrets(values: string[]): string[] {
@@ -87,6 +102,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AgentConfig {
   const telegramToken = parsed.TELEGRAM_BOT_TOKEN?.trim();
   const telegramChat = parsed.TELEGRAM_CHAT_ID?.trim();
   const webhookUrl = parsed.WEBHOOK_NOTIFY_URL?.trim();
+  const openaiApiKey = parsed.OPENAI_API_KEY?.trim();
+  const openaiDecisionModel =
+    parsed.OPENAI_MODEL_DECISION?.trim() ||
+    parsed.OPENAI_MODEL_GUARD?.trim() ||
+    "gpt-4.1";
+  const openaiFastModel = parsed.OPENAI_MODEL_FAST?.trim() || undefined;
+  const openaiBaseUrl =
+    parsed.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1";
+  const openaiTemperatureRaw = parsed.OPENAI_TEMPERATURE?.trim();
+  const openaiTemperature = Number(openaiTemperatureRaw);
+  const openaiMaxTokensRaw = parsed.OPENAI_MAX_TOKENS?.trim();
+  const openaiMaxTokens = Number(openaiMaxTokensRaw);
 
   return {
     rpcUrl: parsed.RPC_URL.trim(),
@@ -110,6 +137,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AgentConfig {
     webhook: webhookUrl
       ? {
           url: webhookUrl,
+        }
+      : undefined,
+    openai: openaiApiKey
+      ? {
+          apiKey: openaiApiKey,
+          decisionModel: openaiDecisionModel,
+          fastModel: openaiFastModel,
+          baseUrl: openaiBaseUrl,
+          temperature:
+            Number.isFinite(openaiTemperature) && openaiTemperature >= 0
+              ? openaiTemperature
+              : 0.2,
+          maxTokens:
+            Number.isFinite(openaiMaxTokens) && openaiMaxTokens > 0
+              ? Math.floor(openaiMaxTokens)
+              : undefined,
         }
       : undefined,
   };

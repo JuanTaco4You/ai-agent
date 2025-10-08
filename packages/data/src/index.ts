@@ -28,6 +28,13 @@ export class FeatureStore {
   get(mint: string): MarketFeatureSnapshot | undefined {
     return this.snapshots.get(mint);
   }
+
+  /**
+   * Exposes a shallow copy of all stored snapshots for downstream analysis.
+   */
+  all(): MarketFeatureSnapshot[] {
+    return Array.from(this.snapshots.values());
+  }
 }
 
 export * from "./pricing";

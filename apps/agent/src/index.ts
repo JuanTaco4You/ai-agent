@@ -19,6 +19,7 @@ import {
   SwapExecutor,
 } from "@ai-agent/execution";
 import { RiskEngine } from "@ai-agent/risk";
+import { DecisionAgent, OpenAIClient } from "@ai-agent/intelligence";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -74,6 +75,34 @@ async function main(): Promise<void> {
   }
   const notifierManager = new NotifierManager(notifiers);
 
+  const openaiLogger = childLogger(rootLogger, "OpenAI");
+  let decisionAgent: DecisionAgent | undefined;
+  if (config.openai) {
+    try {
+      const client = new OpenAIClient({
+        apiKey: config.openai.apiKey,
+        baseUrl: config.openai.baseUrl,
+        logger: openaiLogger,
+      });
+      decisionAgent = new DecisionAgent({
+        client,
+        model: config.openai.decisionModel,
+        temperature: config.openai.temperature,
+        maxTokens: config.openai.maxTokens,
+        logger: childLogger(openaiLogger, "Decision"),
+      });
+      openaiLogger.info("agent.openai.enabled", {
+        decisionModel: config.openai.decisionModel,
+      });
+    } catch (err) {
+      openaiLogger.error("agent.openai.init_failed", { error: err });
+    }
+  } else {
+    openaiLogger.info("agent.openai.disabled", {
+      reason: "OPENAI_API_KEY not configured",
+    });
+  }
+
   let executor: SwapExecutor;
   if (!config.dryRun && config.walletSecrets.length > 0) {
     const [wallet] = keypairsFromSecrets(config.walletSecrets);
@@ -101,32 +130,109 @@ async function main(): Promise<void> {
     velocity: 0.5,
   });
 
-  const snapshot = featureStore.get(mint);
-  rootLogger.info("agent.snapshot", snapshot);
-
   const notifyingExecutor = new NotifyingExecutor(executor, notifierManager);
   executor = notifyingExecutor;
 
+  const features = featureStore.all();
+  rootLogger.info("agent.snapshot", {
+    markets: features.length,
+    sample: features[0],
+  });
+
   if (config.dryRun || config.walletSecrets.length === 0) {
-    if (!riskEngine.canEnterPosition(0.1)) {
-      rootLogger.warn("agent.risk.blocked", {
-        reason: "Position limit",
+    if (decisionAgent) {
+      const remainingExposure = Math.max(
+        0,
+        config.maxPositionSol - riskEngine.getCurrentExposureSol(),
+      );
+      const decision = await decisionAgent.decide({
+        features,
+        riskSummary: {
+          maxPositionSol: config.maxPositionSol,
+          remainingExposureSol: remainingExposure,
+        },
+      });
+      rootLogger.info("agent.decision.final", decision);
+
+      if (decision.action === "hold") {
+        rootLogger.info("agent.decision.hold", {
+          rationale: decision.rationale,
+          confidence: decision.confidence,
+        });
+        return;
+      }
+
+      if (decision.action === "sell") {
+        rootLogger.warn("agent.decision.sell_unhandled", {
+          decision,
+        });
+        return;
+      }
+
+      if (!decision.mint) {
+        rootLogger.warn("agent.decision.mint_missing", { decision });
+        return;
+      }
+
+      const requestedSize =
+        decision.sizeSol && decision.sizeSol > 0
+          ? decision.sizeSol
+          : Math.min(0.1, config.maxPositionSol);
+      const solAmount = Math.min(
+        requestedSize,
+        config.maxPositionSol,
+        remainingExposure,
+      );
+
+      if (solAmount <= 0) {
+        rootLogger.warn("agent.decision.size_invalid", {
+          requestedSize,
+          remainingExposure,
+        });
+        return;
+      }
+
+      if (!riskEngine.canEnterPosition(solAmount)) {
+        rootLogger.warn("agent.risk.blocked", {
+          reason: "Position limit",
+          solAmount,
+        });
+        return;
+      }
+
+      const result = await executor.execute({
+        mint: decision.mint,
+        side: "buy",
+        solAmount,
+        slippageBps: decision.slippageBps ?? config.defaultSlippageBps,
+      });
+      riskEngine.recordTrade({
+        timestamp: Date.now(),
+        side: "buy",
+        solAmount,
+      });
+      rootLogger.info("agent.execution.result", result);
+    } else {
+      if (!riskEngine.canEnterPosition(0.1)) {
+        rootLogger.warn("agent.risk.blocked", {
+          reason: "Position limit",
+          solAmount: 0.1,
+        });
+        return;
+      }
+      const result = await executor.execute({
+        mint,
+        side: "buy",
+        solAmount: 0.1,
+        slippageBps: config.defaultSlippageBps,
+      });
+      riskEngine.recordTrade({
+        timestamp: Date.now(),
+        side: "buy",
         solAmount: 0.1,
       });
-      return;
+      rootLogger.info("agent.execution.result", result);
     }
-    const result = await executor.execute({
-      mint,
-      side: "buy",
-      solAmount: 0.1,
-      slippageBps: config.defaultSlippageBps,
-    });
-    riskEngine.recordTrade({
-      timestamp: Date.now(),
-      side: "buy",
-      solAmount: 0.1,
-    });
-    rootLogger.info("agent.execution.result", result);
   } else {
     rootLogger.info("agent.live.mode", {
       message: "Live mode enabled; awaiting strategy directives.",
